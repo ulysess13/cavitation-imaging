@@ -1,0 +1,39 @@
+function [beamformed_Image] = TEA(RF_Arr,element_Pos_Array_um_X,expose_time,speed_Of_Sound_umps,sampling_Freq,image_Range_X_um,image_Range_Z_um)
+%TEA:Time exposure acoustics
+%beamformed_Image: double
+%RF_Arr:Rf signal (signal length*channel number)
+%element_Pos_Array_um_X: receive transducer element position (x)
+%expose_time:expose_time
+%speed_Of_Sound_umps: speed of sound
+%sampling_Freq: sampling frequency Fs
+%image_Range_X_um: Pixel matrix width (x)
+%image_Range_Z_um: Pixel matrix depth (z)
+beamformed_Image = zeros(length(image_Range_X_um), length(image_Range_Z_um));
+S = size(RF_Arr);
+N = S(1);
+%time_Pt_mini=image_Range_Z_um(1)/(speed_Of_Sound_umps);
+expose_time=expose_time*sampling_Freq;  
+Tstep=1e-6*sampling_Freq; %1us
+for Xi = 1:length(image_Range_X_um)
+    for Zi = 1:length(image_Range_Z_um)
+        pixel_Instensity = 0;
+        for Pt=1:Tstep:expose_time
+            pixel_Amp = 0;
+            for ex=1:length(element_Pos_Array_um_X(:,1))
+                distance_Along_RF =  sqrt((image_Range_X_um(Xi)- element_Pos_Array_um_X(ex))^2 +(image_Range_Z_um(Zi))^2); 
+                time_Pt_Along_RF = distance_Along_RF/(speed_Of_Sound_umps);
+                sample_Pt = round((time_Pt_Along_RF)*sampling_Freq+Pt); 
+                if(sample_Pt>N || sample_Pt<1)
+                    RF_Amp = 0;
+                else
+                    RF_Amp = RF_Arr(sample_Pt, ex);
+                end
+                pixel_Amp = pixel_Amp + RF_Amp;
+            end
+            pixel_Instensity=pixel_Instensity+pixel_Amp^2;
+        end
+        beamformed_Image(Xi, Zi) = pixel_Instensity/ceil(expose_time/Tstep);
+    end
+end
+end
+
