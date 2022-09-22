@@ -16,7 +16,7 @@ fil_sub=load('D:\404\matlab_work\RF_recon_20220818\comb_1');
 fil_BW=load('D:\404\matlab_work\RF_recon_20220818\comb_2');
 
 fil_mode=0;
-recon_mode=2; %1==TEA,2==IDAS;
+recon_mode=1; %1==TEA,2==IDAS;
 maxfilenum=30;
 max_reconnum=length(preSet.Recon);
 PCI_reconnum=1;
@@ -95,9 +95,9 @@ for no_file=11:maxfilenum
         end
         PCI_Ins(no_file)=max(PCI_e(:));
         
-        %h=figure(1);set(h,'position',[100,250,512,696]);
-        %imagesc(x_um_Range*1e-3, z_um_Range*1e-3, PCI_e), colormap('hot'),xlabel('lateral/mm'),ylabel('axial/mm')  
-        %title(['PCI ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');
+        h=figure(1);set(h,'position',[300,200,4*size(PCI_e,2),4*size(PCI_e,1)]);
+        imagesc(x_um_Range*1e-3, z_um_Range*1e-3,PCI_e);colormap('hot'),xlabel('lateral/mm'),ylabel('axial/mm')  
+        colorbar('EastOutside'),title(['max Intensity: ' num2str(PCI_Ins(no_file))]);
     end
     for no_recon=2:max_reconnum
         load([file_addr '\IQ\IQData_' num2str(no_file) '_frame_' int2str(no_recon)]);
@@ -112,20 +112,9 @@ for no_file=11:maxfilenum
         ACI_n=ACI_dB;
         ACI_n(ACI_n<-60)=-60;
         ACI_n=(ACI_n-(-60))./(0-(-60));  
-        PCI_n=PCI_e;
-        PCI_n(PCI_n<0.5*PCI_Ins(no_file))=0;
-        PCI_n(PCI_n>0)=1;
+        PCI_n=PCI_e./PCI_Ins(no_file);
         
-        h=figure(1);
-%         h1=imagesc(ACI_n);
-%         hold on
-%         PCI_n(PCI_n<0.5*PCI_Ins(no_file))=nan;
-%         h2=imagesc(PCI_n);set(h2,'alphadata',~isnan(PCI_n));colormap('hot'),xlabel('lateral/mm'),ylabel('axel/mm')
-%         title(['Image ' num2str(no_file) ' Frame ' num2str(no_frame)]);
-%         pause(0.3)
-%         hold off
-        imshow(ACI_n,[]);alphamask(PCI_n,[1,0.65,0],0.8);
-        title(['File:' num2str(no_file) ' max intensity: ' num2str(PCI_Ins(no_file)) ]);
+        do_Overlay(ACI_n,PCI_n);
         pause(0.3)
     end
 end
