@@ -1,0 +1,132 @@
+clc
+close all;
+clear;
+disp('please chose rf location');
+RFaddr=uigetdir;
+disp('please chose preset');
+[preset_name,preset_addr]=uigetfile;
+disp('please chose filter');
+[fil_name,fil_addr]=uigetfile;
+if isequal(RFaddr,0) || isequal(preset_addr,0)
+    disp('pathway not found');
+    return;
+end
+load([preset_addr '\' preset_name]);
+if isequal(fil_addr,0)
+    disp('no filter');
+else
+    fil=load([fil_addr '\' fil_name]);
+end
+
+maxfilenum=30;
+max_reconnum=1;
+
+%Trnsducer
+no_PData=1;
+Trans=preSet.Trans;
+numelements=Trans.numelements;
+f0=Trans.frequency*1e6; %center frequency,Hz.
+element_Pos_Array_um_X=Trans.ElementPosMm(:,1:3)*10^3;  %x,y,z,um
+
+c=1540;     %m/s.
+c_um = c*1e6;   %um.
+wavelength_um = c_um/f0;
+
+%PData for 2d
+PData.Size=[preSet.PData(no_PData).Size(2),preSet.PData(no_PData).Size(1)];%x,z,pixel
+PData.Res=[preSet.PData(no_PData).PDelta(1),preSet.PData(no_PData).PDelta(3)].*wavelength_um;%x,z,um
+PData.Origin=[preSet.PData(no_PData).Origin(1)/preSet.PData(no_PData).PDelta(1),preSet.PData(no_PData).Origin(3)/preSet.PData(no_PData).PDelta(3)];%x,z,pixels
+x_um_Range=(PData.Origin(1)-1+[1:PData.Size(1)]).*PData.Res(1);%um
+z_um_Range=(PData.Origin(2)-1+[1:PData.Size(2)]).*PData.Res(2);%um
+
+%source for HIFU
+focus_HIFU_um=[-5,0,35]*1e3;
+source_HIFU_um(1,:)=[54.5,0,-32]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(2,:)=[58.04,0,-25.02]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(3,:)=[60.68,0,-17.65]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(4,:)=[62.4,0,-10]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(5,:)=[62.4,0,10]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(6,:)=[60.68,0,17.65]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(7,:)=[58.04,0,25.02]*1e3+focus_HIFU_um; %x,y,z in Mm
+source_HIFU_um(8,:)=[54.5,0,32]*1e3+focus_HIFU_um; %x,y,z in Mm
+
+[startDepth_um,endDepth_um]=calc_distance(source_HIFU_um,element_Pos_Array_um_X,x_um_Range,z_um_Range); 
+%[startDepth_um,endDepth_um]=calc_distance([63.2,0,0]*1e3+focus_HIFU_um,element_Pos_Array_um_X,x_um_Range,z_um_Range); 
+RF_Start_Time=2*startDepth_um/c_um;
+startDepth=startDepth_um/wavelength_um;
+endDepth=endDepth_um/wavelength_um; 
+
+Img=zeros(PData.Size(1),PData.Size(2));
+Img_fil=zeros(PData.Size(1),PData.Size(2));
+Img_e=zeros(PData.Size(2),PData.Size(1));
+Img_fil_e=zeros(PData.Size(2),PData.Size(1));
+max_Ins=zeros(max_reconnum*maxfilenum,1);
+max_Ins_1=zeros(max_reconnum*maxfilenum,1);
+no=1;
+
+for no_file=11:11
+    load([RFaddr '\RFData_' num2str(no_file)]);    
+    for no_recon=1:max_reconnum
+        no_RI=preSet.Recon(no_recon).RINums;
+        no_frame=preSet.Recon(no_recon).rcvBufFrame;
+        no_receive=preSet.ReconInfo(no_RI).rcvnum;
+        fs=preSet.Receive(no_receive).decimSampleRate*1e6;  %sample rate,Hz.
+
+        delta=ceil((startDepth)*fs/f0*2)-1; 
+        RF_noisy=double(RcvData(preSet.Receive(no_receive).startSample+delta:preSet.Receive(no_receive).endSample,:,no_frame));
+        
+        expouse_time = ceil(size(RF_noisy,1)/fs*1e6-max(z_um_Range)/c_um*1e6);
+        
+        %RF_Start_Time=2*preSet.Receive(no_receive).startDepth*wavelength_um/c_um; Img = DAS_ACI(RF_noisy, element_Pos_Array_um_X, c_um, RF_Start_Time, fs, x_um_Range, z_um_Range);                
+        %Img = DAS_PowerCI(RF_noisy, [63.2,0,0]*1e3+focus_HIFU_um, element_Pos_Array_um_X, c_um, RF_Start_Time, fs, x_um_Range, z_um_Range);
+        %Img = DAS_PCI_abt(RF_noisy, source_HIFU_um, element_Pos_Array_um_X, c_um, RF_Start_Time, fs, x_um_Range, z_um_Range);  
+        %[Img,Ins_IDAS]=IDAS_PCI(1,RF_noisy,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range, z_um_Range); 
+        %Img_e = envelope(Img');   %DAS,DAS_abt,IDAS
+        %Img_e = (TEA(RF_noisy,element_Pos_Array_um_X, expouse_time*1e-6, c_um, fs, x_um_Range, z_um_Range))';
+        %max_Ins(no)=max(Img_e(:));
+        %Img_e = Img_e./max(Img_e(:));
+        %Img_dB = 20*log10(Img_e); 
+        Img_3d=IDAS_PCI_3d(RF_noisy,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range,z_um_Range);
+       
+        h=figure(1);set(h,'position',[600,250,1440,696]);
+        %subplot(1,2,1), imagesc(x_um_Range*1e-3, z_um_Range*1e-3, Img_e), colormap('hot'),xlabel('lateral/mm'),ylabel('axial/mm')  
+        %title(['RFData ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');
+        subplot(1,2,1), vol3d('cdata',Img_3d,'texture','3D','YData',x_um_Range*1e-3,'ZData',-z_um_Range*1e-3);
+        ylabel('lateral/mm'),zlabel('axial/mm'),xlabel('recon start time/us') ;
+        view([80,17]);alphamap('rampup');alphamap(.08.*alphamap);
+        title(['RFData ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');       
+        
+        if isequal(fil_addr,0)
+            figure(1),subplot(1,2,2)
+            %imagesc(1:1:128,((1:1:size(RF_noisy,1))+delta)/fs*1e6,RF_noisy),xlabel('element'),ylabel('time/us')
+            for i=1:numelements
+                plot(((1:1:size(RF_noisy,1))+delta)/fs*1e6,(RF_noisy(:,i)./max(RF_noisy(:,i)))+i,'b'), hold on
+            end
+            hold off
+            xlabel('time/us'),ylabel('elements')
+        else
+            RF_fil=filter(fil.b,fil.a,RF_noisy);
+            %Img_fil = DAS_ACI(RF_fil, element_Pos_Array_um_X, c_um, RF_Start_Time, fs, x_um_Range, z_um_Range);
+            %Img_fil = DAS_PowerCI(RF_fil, [63.2,0,0]*1e3+focus_HIFU_um, element_Pos_Array_um_X, c_um, RF_Start_Time, fs, x_um_Range, z_um_Range);
+            %Img_fil = DAS_PCI_abt(RF_fil, source_HIFU_um, element_Pos_Array_um_X, c_um, RF_Start_Time, fs, x_um_Range, z_um_Range);
+            %[Img_fil,Ins_IDAS_fil]=IDAS_PCI(1,RF_fil,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range, z_um_Range);
+            %Img_fil_e = envelope(Img_fil');
+            %max_Ins_1(no)=max(Img_fil_e(:));
+            %Img_fil_e = (TEA(RF_fil,element_Pos_Array_um_X, expouse_time*1e-6,c_um, fs, x_um_Range, z_um_Range))';
+            %Img_fil_e=Img_fil_e./max(Img_fil_e(:));
+            %Img_fil_dB=20*log10(Img_fil_e); 
+            Img_fil_3d=IDAS_PCI_3d(RF_fil,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range,z_um_Range);
+            
+            figure(1),subplot(1,2,2),
+            %imagesc(x_um_Range*1e-3, z_um_Range*1e-3, Img_fil_e), colormap('hot'),xlabel('lateral/mm'),ylabel('axial/mm')  
+            %title(['RFData ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');
+            vol3d('cdata',Img_fil_3d,'texture','3D','YData',x_um_Range*1e-3,'ZData',-z_um_Range*1e-3);
+            ylabel('lateral/mm'),zlabel('axial/mm'),xlabel('recon start time/us') ;
+            view([80,17]);alphamap('rampup');alphamap(.08.*alphamap);
+            title(['RFData ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');
+        end
+        pause(0.3);
+        no=no+1;
+    end 
+end
+
