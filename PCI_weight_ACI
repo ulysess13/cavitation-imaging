@@ -91,6 +91,7 @@ for no_file=11:maxfilenum
             PCI_e=envelope(PCI');
         else
             disp('no available recon mode');
+            return;
         end
         PCI_Ins(no_file)=max(PCI_e(:));
         
