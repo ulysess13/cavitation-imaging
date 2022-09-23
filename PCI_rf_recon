@@ -86,12 +86,12 @@ for no_file=11:11
         %max_Ins(no)=max(Img_e(:));
         %Img_e = Img_e./max(Img_e(:));
         %Img_dB = 20*log10(Img_e); 
-        Img_3d=IDAS_PCI_3d(RF_noisy,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range,z_um_Range);
+        Img_time=IDAS_PCI_time(RF_noisy,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range,z_um_Range);
        
         h=figure(1);set(h,'position',[600,250,1440,696]);
         %subplot(1,2,1), imagesc(x_um_Range*1e-3, z_um_Range*1e-3, Img_e), colormap('hot'),xlabel('lateral/mm'),ylabel('axial/mm')  
         %title(['RFData ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');
-        subplot(1,2,1), vol3d('cdata',Img_3d,'texture','3D','YData',x_um_Range*1e-3,'ZData',-z_um_Range*1e-3);
+        subplot(1,2,1), vol3d('cdata',Img_time,'texture','3D','YData',x_um_Range*1e-3,'ZData',-z_um_Range*1e-3);
         ylabel('lateral/mm'),zlabel('axial/mm'),xlabel('recon start time/us') ;
         view([80,17]);alphamap('rampup');alphamap(.08.*alphamap);
         title(['RFData ' num2str(no_file) ' Frame ' num2str(no_frame)]),colorbar('EastOutside');       
@@ -115,7 +115,7 @@ for no_file=11:11
             %Img_fil_e = (TEA(RF_fil,element_Pos_Array_um_X, expouse_time*1e-6,c_um, fs, x_um_Range, z_um_Range))';
             %Img_fil_e=Img_fil_e./max(Img_fil_e(:));
             %Img_fil_dB=20*log10(Img_fil_e); 
-            Img_fil_3d=IDAS_PCI_3d(RF_fil,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range,z_um_Range);
+            Img_fil_3d=IDAS_PCI_time(RF_fil,element_Pos_Array_um_X,expouse_time*1e-6,c_um,fs,x_um_Range,z_um_Range);
             
             figure(1),subplot(1,2,2),
             %imagesc(x_um_Range*1e-3, z_um_Range*1e-3, Img_fil_e), colormap('hot'),xlabel('lateral/mm'),ylabel('axial/mm')  
